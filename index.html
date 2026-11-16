@@ -148,6 +148,7 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 .sub { color: var(--muted); margin: 0; font-weight: 600; }
 .status { display: grid; justify-items: end; gap: 6px; font-size: 13px; color: var(--muted); }
 .clock { font: 600 30px/1 var(--f-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.clock .ampm { font-size: 15px; margin-left: 4px; color: var(--muted); letter-spacing: .04em; }
 .live { display: inline-flex; align-items: center; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
 .dot.err { background: var(--bad); animation: none; }
@@ -327,7 +328,9 @@ const TYPE = { SD: "Single deck", DD: "Double deck", BD: "Bendy" };
 let data = null, lastFetch = 0;
 
 const arrow = () => `<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l3.5 4-3.5 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const fmtTime = (d) => d.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: false });
+// All times shown in 12-hour US style (e.g. 4:53 PM), always in Singapore time
+const SG = "Asia/Singapore";
+const fmtTime = (d, sec = false) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", ...(sec ? { second: "2-digit" } : {}), hour12: true, timeZone: SG });
 
 // Collect unique upcoming buses per service, split by visit number (direction)
 function bucket(svc) {
@@ -426,7 +429,7 @@ async function load() {
     document.getElementById("err").hidden = true;
     document.getElementById("dot").classList.remove("err");
     const now = new Date();
-    document.getElementById("updated").textContent = "Updated " + fmtTime(now) + ":" + String(now.getSeconds()).padStart(2, "0");
+    document.getElementById("updated").textContent = "Updated " + fmtTime(now, true);
   } catch (e) {
     lastFetch = Date.now();
     document.getElementById("dot").classList.add("err");
@@ -439,7 +442,8 @@ async function load() {
 }
 
 function tick() {
-  document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-SG", { hour12: false });
+  const [clk, ap] = fmtTime(new Date(), true).split(" ");
+  document.getElementById("clock").innerHTML = `${clk}<span class="ampm">${ap}</span>`;
   const frac = Math.min(1, (Date.now() - lastFetch) / REFRESH_MS);
   document.getElementById("bar").style.width = (frac * 100) + "%";
   if (data) render();
@@ -486,7 +490,7 @@ function wxIcon(kind, size = 44) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">${body}</svg>`;
 }
 
-const hhmm = (iso) => new Date(iso).toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit", hour12: true }).replace(":00", "").toLowerCase();
+const hhmm = (iso) => fmtTime(new Date(iso));
 const getJSON = (u) => fetch(u, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
 const $ = (id) => document.getElementById(id);
 
