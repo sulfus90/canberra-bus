@@ -25,6 +25,11 @@
   --sembawang: #3f7fb8;       /* blue ears */
   --sembawang-soft: #e1edf8;
   --butter: #f7e3a1;          /* usagi yellow */
+  --sky-soft: #eaf3fb;
+  --sun: #f2b84b;
+  --cloud: #ffffff;
+  --cloud-edge: #b9cbe0;
+  --rain: #5b93c9;
   --ok: #4f9a43; --warn: #c98a1c; --bad: #cf5f78;
   --shadow: 0 10px 30px -12px rgba(70, 105, 50, .35), 0 2px 6px rgba(70, 105, 50, .10);
   --f-display: "Fredoka", "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
@@ -74,6 +79,35 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 .bar { width: 130px; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--meadow-deep); border-radius: 99px; width: 0; transition: width 1s linear; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(79,154,67,.55); } 70% { box-shadow: 0 0 0 8px rgba(79,154,67,0); } 100% { box-shadow: 0 0 0 0 rgba(79,154,67,0); } }
+
+.wx-mini { display: inline-flex; align-items: center; gap: 6px; font: 600 14px var(--f-display); color: var(--ink); text-decoration: none; background: var(--sky-soft); padding: 2px 10px 2px 4px; border-radius: 99px; }
+.wx-mini:focus-visible { outline: 2px solid var(--sembawang); outline-offset: 2px; }
+
+/* Weather */
+.weather { padding: 16px 20px; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px 20px; align-items: center; }
+.wx-now { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.wx-icon { flex: none; width: 72px; height: 72px; border-radius: 22px; background: var(--sky-soft); display: grid; place-items: center; }
+.wx-main { min-width: 0; }
+.wx-temp { font: 700 46px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.wx-temp .deg { font-size: 20px; color: var(--muted); margin-left: 2px; vertical-align: 18px; }
+.wx-text { font: 600 16px/1.25 var(--f-display); margin-top: 2px; }
+.wx-meta { font-size: 12px; color: var(--muted); }
+.wx-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wx-stat { background: rgba(255,255,255,.7); border-radius: 16px; padding: 8px 10px; display: grid; gap: 1px; min-width: 0; }
+.wx-stat .k { font: 700 11px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.wx-stat b { font: 600 17px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.wx-periods, .wx-days { grid-column: 1 / -1; display: grid; gap: 8px; }
+.wx-periods { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.wx-days { grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px dotted rgba(59,71,51,.15); padding-top: 12px; }
+.wx-days:empty, .wx-periods:empty { display: none; }
+.period { display: flex; align-items: center; gap: 10px; background: var(--sky-soft); border-radius: 16px; padding: 8px 12px; min-width: 0; }
+.period small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+.period span { font: 600 14px/1.2 var(--f-display); }
+.day { display: grid; justify-items: center; gap: 2px; text-align: center; min-width: 0; }
+.day .d { font: 700 12px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.day .hl { font: 600 15px var(--f-display); font-variant-numeric: tabular-nums; }
+.day .hl i { font-style: normal; color: var(--muted); }
+.day .f { font-size: 11px; color: var(--muted); line-height: 1.25; }
 
 /* Legend */
 .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; font-size: 13px; color: var(--ink); }
@@ -130,6 +164,9 @@ footer p { margin: 2px 0; }
   .lanes { grid-template-columns: minmax(0, 1fr); padding: 4px 10px 10px; }
   .status { justify-items: start; }
   .svc-head { padding: 12px 14px 8px; }
+  .weather { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .wx-days { gap: 4px; }
+  .day .f { display: none; }
   header { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .dot { animation: none; } .bar > i { transition: none; } }
@@ -150,6 +187,7 @@ footer p { margin: 2px 0; }
     </div>
     <div class="status">
       <div class="clock" id="clock">--:--:--</div>
+      <a class="wx-mini" id="wxMini" href="#weather" hidden></a>
       <div class="live"><span class="dot" id="dot"></span><span id="updated">Connecting…</span></div>
       <div class="bar" title="Time until next refresh"><i id="bar"></i></div>
     </div>
@@ -165,10 +203,29 @@ footer p { margin: 2px 0; }
   <div id="err" class="error" hidden></div>
   <div id="board" style="display:grid;gap:16px"></div>
 
+  <section class="weather glass" id="weather" aria-label="Weather">
+    <div class="wx-now">
+      <div class="wx-icon" id="wxIcon"></div>
+      <div class="wx-main">
+        <div class="wx-temp"><span id="wxTemp">--</span><span class="deg">°C</span></div>
+        <div class="wx-text" id="wxText">Loading weather…</div>
+        <div class="wx-meta" id="wxMeta"></div>
+      </div>
+    </div>
+    <div class="wx-today">
+      <div class="wx-stat"><span class="k">Today</span><b id="wxRange">–</b></div>
+      <div class="wx-stat"><span class="k">Humidity</span><b id="wxHum">–</b></div>
+      <div class="wx-stat"><span class="k">Wind</span><b id="wxWind">–</b></div>
+    </div>
+    <div class="wx-periods" id="wxPeriods"></div>
+    <div class="wx-days" id="wxDays"></div>
+  </section>
+
   <div class="scene"><img src="friends.png" alt="" width="236" height="211"></div>
 </div>
 <footer class="glass">
   <p>Live data from LTA DataMall via arrivelah (busrouter.sg). Updates every 10 seconds.</p>
+  <p>Weather from NEA via data.gov.sg. Updates every 2 minutes.</p>
   <p>861 and 883 loop from Sembawang Int. Their 1st stop here heads to Yishun, the 2nd heads back to Sembawang.</p>
 </footer>
 
@@ -307,6 +364,114 @@ function tick() {
   document.getElementById("bar").style.width = (frac * 100) + "%";
   if (data) render();
 }
+
+/* ---------- Weather (NEA via data.gov.sg) ---------- */
+const WX = {
+  temp: "https://api-open.data.gov.sg/v2/real-time/api/air-temperature",
+  now: "https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast",
+  day: "https://api-open.data.gov.sg/v2/real-time/api/twenty-four-hr-forecast",
+  week: "https://api.data.gov.sg/v1/environment/4-day-weather-forecast",
+};
+const WX_REFRESH_MS = 120000;
+const WX_AREA = "Sembawang";          // 2-hour forecast area for Canberra
+const WX_STATIONS = ["S80", "S104", "S109"]; // Sembawang met station first, then nearest fallbacks
+const WX_REGION = "north";
+
+function wxKind(text = "") {
+  const t = text.toLowerCase(), night = t.includes("night");
+  if (t.includes("thunder")) return "thunder";
+  if (/shower|rain|drizzle/.test(t)) return "rain";
+  if (t.includes("partly")) return night ? "partly-night" : "partly";
+  if (/cloud|overcast|haz|mist|fog|wind/.test(t)) return "cloud";
+  return night ? "moon" : "sun";
+}
+
+function wxIcon(kind, size = 44) {
+  const cloud = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M10 26h24a8 8 0 0 0 0-16 11 11 0 0 0-21-2A9 9 0 0 0 10 26z" fill="var(--cloud)" stroke="var(--cloud-edge)" stroke-width="2" stroke-linejoin="round"/></g>`;
+  const sun = (x, y, r = 9) => `<g fill="var(--sun)"><circle cx="${x}" cy="${y}" r="${r}"/>${[0,45,90,135,180,225,270,315].map(a => {
+      const rad = a * Math.PI / 180, x1 = x + Math.cos(rad) * (r + 3), y1 = y + Math.sin(rad) * (r + 3), x2 = x + Math.cos(rad) * (r + 7), y2 = y + Math.sin(rad) * (r + 7);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--sun)" stroke-width="3" stroke-linecap="round"/>`; }).join("")}</g>`;
+  const moon = (x, y) => `<path d="M${x + 6} ${y - 10}a11 11 0 1 0 6 18 9 9 0 0 1-6-18z" fill="var(--sun)"/>`;
+  const drops = `<g stroke="var(--rain)" stroke-width="3" stroke-linecap="round"><line x1="16" y1="36" x2="13" y2="42"/><line x1="25" y1="36" x2="22" y2="42"/><line x1="34" y1="36" x2="31" y2="42"/></g>`;
+  const bolt = `<path d="M25 33l-5 8h5l-3 6 8-10h-5l3-4z" fill="var(--sun)" stroke="#d99a2b" stroke-width="1" stroke-linejoin="round"/>`;
+  const body = {
+    sun: sun(24, 24, 10),
+    moon: moon(22, 24),
+    partly: sun(17, 17, 7) + cloud(4, 12),
+    "partly-night": moon(14, 16) + cloud(4, 12),
+    cloud: cloud(2, 8, 1.05),
+    rain: cloud(2, 4) + drops,
+    thunder: cloud(2, 2) + bolt,
+  }[kind] || cloud(2, 8);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">${body}</svg>`;
+}
+
+const hhmm = (iso) => new Date(iso).toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit", hour12: true }).replace(":00", "").toLowerCase();
+const getJSON = (u) => fetch(u, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const $ = (id) => document.getElementById(id);
+
+async function loadWeather() {
+  const [temp, now, day, week] = await Promise.allSettled([WX.temp, WX.now, WX.day, WX.week].map(getJSON));
+
+  if (now.status === "fulfilled") {
+    const item = now.value.data.items[0];
+    const f = item.forecasts.find(x => x.area === WX_AREA);
+    if (f) {
+      $("wxText").textContent = f.forecast;
+      $("wxIcon").innerHTML = wxIcon(wxKind(f.forecast), 54);
+      $("wxMeta").dataset.period = `${WX_AREA}, ${hhmm(item.valid_period.start)} to ${hhmm(item.valid_period.end)}`;
+    }
+  }
+
+  if (temp.status === "fulfilled") {
+    const d = temp.value.data, r = d.readings[0];
+    let hit = null, name = "";
+    for (const id of WX_STATIONS) {
+      hit = r.data.find(x => x.stationId === id);
+      if (hit) { name = (d.stations.find(s => s.id === id) || {}).name || id; break; }
+    }
+    if (hit) {
+      $("wxTemp").textContent = Number(hit.value).toFixed(1);
+      $("wxMeta").dataset.temp = `${name.replace(" Meteorological Station", " station")} at ${hhmm(r.timestamp)}`;
+    }
+  }
+  const m = $("wxMeta").dataset;
+  $("wxMeta").textContent = [m.period, m.temp].filter(Boolean).join(" · ");
+  if ($("wxTemp").textContent !== "--") {
+    const txt = $("wxText").textContent;
+    $("wxMini").innerHTML = `${wxIcon(wxKind(txt), 24)}${$("wxTemp").textContent}°C · ${txt}`;
+    $("wxMini").hidden = false;
+  }
+
+  if (day.status === "fulfilled") {
+    const rec = day.value.data.records[0], g = rec.general;
+    $("wxRange").textContent = `${g.temperature.low}–${g.temperature.high}°`;
+    $("wxHum").textContent = `${g.relativeHumidity.low}–${g.relativeHumidity.high}%`;
+    $("wxWind").innerHTML = `${g.wind.direction} ${g.wind.speed.low}–${g.wind.speed.high}<small style="font-size:11px;color:var(--muted)"> km/h</small>`;
+    $("wxPeriods").innerHTML = rec.periods
+      .filter(p => new Date(p.timePeriod.end) > Date.now())
+      .map(p => {
+        const f = (p.regions[WX_REGION] || Object.values(p.regions)[0]).text;
+        return `<div class="period">${wxIcon(wxKind(f), 34)}<div><small>${p.timePeriod.text}</small><span>${f.replace(/ \((Day|Night)\)/, "")}</span></div></div>`;
+      }).join("");
+  }
+
+  if (week.status === "fulfilled") {
+    const days = week.value.items[0].forecasts.slice(0, 4);
+    $("wxDays").innerHTML = days.map(d => {
+      const dt = new Date(d.date + "T12:00:00+08:00");
+      const label = dt.toLocaleDateString("en-SG", { weekday: "short" });
+      return `<div class="day" title="${d.forecast}"><span class="d">${label}</span>${wxIcon(wxKind(d.forecast), 36)}<span class="hl">${d.temperature.high}° <i>${d.temperature.low}°</i></span><span class="f">${d.forecast}</span></div>`;
+    }).join("");
+  }
+
+  if ([temp, now, day].every(x => x.status === "rejected")) {
+    $("wxText").textContent = "Weather unavailable, retrying in 2 minutes";
+  }
+}
+
+loadWeather();
+setInterval(loadWeather, WX_REFRESH_MS);
 
 load();
 setInterval(load, REFRESH_MS);
