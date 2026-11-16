@@ -4,13 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Canberra 126D Buses</title>
+<script>
+// Day 7am–7pm, night 7pm–7am, by Singapore time. Set before first paint; #day / #night in the URL forces a look.
+function sgHour() {
+  return Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Singapore" }).format(new Date()));
+}
+function applyTimeOfDay() {
+  const force = location.hash === "#night" ? "night" : location.hash === "#day" ? "day" : null;
+  const h = sgHour();
+  const mode = force || (h >= 7 && h < 19 ? "day" : "night");
+  if (document.documentElement.dataset.time !== mode) document.documentElement.dataset.time = mode;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = mode === "night" ? "#06143a" : "#c8e6b4";
+}
+applyTimeOfDay();
+setInterval(applyTimeOfDay, 30000);
+addEventListener("hashchange", applyTimeOfDay);
+addEventListener("DOMContentLoaded", applyTimeOfDay);
+</script>
+<meta name="theme-color" content="#c8e6b4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap">
 <style>
-/* Layout: meadow wallpaper (tiled texture) under frosted cream cards; per service a card with two
-   direction lanes tinted blush-pink (to Yishun) and ear-blue (to Sembawang); the friends sit at the bottom.
-   Single light theme on purpose: the whole look comes from the pastel meadow image. */
+/* Layout: wallpaper under frosted cards; per service a card with two direction lanes,
+   pink = to Yishun, blue = to Sembawang; the friends sit at the bottom of the page.
+   Two looks switched by Singapore time (not by system theme):
+   DAY 7am–7pm  = pastel meadow (background.jpg, tiled meadow.png, friends.png)
+   NIGHT 7pm–7am = moonlit sea (chiikawa night.webp full-bleed, boat.png) via :root[data-time="night"] */
 :root {
   --meadow: #c8e6b4;          /* sampled from background.jpg */
   --meadow-deep: #a9cf93;
@@ -32,12 +53,48 @@
   --rain: #5b93c9;
   --ok: #4f9a43; --warn: #c98a1c; --bad: #cf5f78;
   --shadow: 0 10px 30px -12px rgba(70, 105, 50, .35), 0 2px 6px rgba(70, 105, 50, .10);
+  --chip: rgba(255, 255, 255, .78);
+  --dots: rgba(59, 71, 51, .15);
+  --on-c: #ffffff;            /* text on a lane-coloured pill */
+  --num-bg: #3b4733; --num-fg: #fffdf6;
+  --badge-ink: #3b4733;
+  --base: #c8e6b4;
   --f-display: "Fredoka", "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
   --f-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
 }
+/* Night: moonlit sea. Navy glass, moon-yellow accents, glowing lane colours. */
+:root[data-time="night"] {
+  --meadow: #0a1f4a;
+  --meadow-deep: #7cc4ff;
+  --cream: rgba(9, 24, 60, .62);
+  --cream-solid: #0b1f44;
+  --edge: rgba(150, 200, 255, .28);
+  --ink: #eef5ff;
+  --muted: #a9bfe0;
+  --line: rgba(255, 255, 255, .14);
+  --yishun: #ffa3bd;
+  --yishun-soft: rgba(255, 140, 175, .16);
+  --sembawang: #84ccff;
+  --sembawang-soft: rgba(110, 190, 255, .16);
+  --butter: #f3e38a;          /* the moon */
+  --sky-soft: rgba(255, 255, 255, .09);
+  --sun: #f3e38a;
+  --cloud: #dfeaff;
+  --cloud-edge: #8fb0d8;
+  --rain: #84ccff;
+  --ok: #7ee08a; --warn: #f3c969; --bad: #ff8fab;
+  --shadow: 0 14px 40px -14px rgba(0, 4, 24, .75), 0 0 0 1px rgba(120, 180, 255, .06), inset 0 1px 0 rgba(255, 255, 255, .08);
+  --chip: rgba(255, 255, 255, .10);
+  --dots: rgba(200, 225, 255, .22);
+  --on-c: #0b1f44;
+  --num-bg: #f3e38a; --num-fg: #0b1f44;
+  --badge-ink: #0b1f44;
+  --base: #06143a;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; }
-html { background: var(--meadow); }
+html { background: var(--base); }
 body {
   margin: 0; min-height: 100%;
   color: var(--ink); font: 600 15px/1.45 var(--f-body);
@@ -48,6 +105,24 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
+/* Night wallpaper: a fixed layer (works on iOS, unlike background-attachment: fixed) with a navy wash
+   that is heaviest at the top so the poster lettering recedes behind the cards. */
+:root[data-time="night"] body { background: transparent; }
+:root[data-time="night"] body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4, 12, 40, .86) 0%, rgba(4, 14, 48, .62) 38%, rgba(4, 14, 48, .35) 70%, rgba(4, 12, 40, .55) 100%),
+    url("chiikawa%20night.webp") center top / max(100vw, 140vh) auto no-repeat, /* top half only: moonbeam + sparkles; the boat stays below the fold and appears as .scene */
+    var(--base);
+}
+:root[data-time="night"] .glass {
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  backdrop-filter: blur(12px) saturate(1.3);
+}
+:root[data-time="night"] h1, :root[data-time="night"] .clock, :root[data-time="night"] .wx-temp { text-shadow: 0 0 18px rgba(130, 190, 255, .35); }
+:root[data-time="night"] .eta.arr { text-shadow: 0 0 16px var(--c); }
+:root:not([data-time="night"]) .night-only, :root[data-time="night"] .day-only { display: none !important; }
+
 .wrap { max-width: 940px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 #board { grid-template-columns: minmax(0, 1fr); }
 .service, .lane, .svc-head { min-width: 0; }
@@ -66,7 +141,7 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .title { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .stop-badge {
   flex: none; width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center;
-  background: var(--butter); color: var(--ink); box-shadow: inset 0 -3px 0 rgba(0,0,0,.06);
+  background: var(--butter); color: var(--badge-ink); box-shadow: inset 0 -3px 0 rgba(0,0,0,.06);
 }
 .stop-code { font: 700 12px var(--f-body); letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
 h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; text-wrap: balance; }
@@ -93,12 +168,12 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 .wx-text { font: 600 16px/1.25 var(--f-display); margin-top: 2px; }
 .wx-meta { font-size: 12px; color: var(--muted); }
 .wx-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.wx-stat { background: rgba(255,255,255,.7); border-radius: 16px; padding: 8px 10px; display: grid; gap: 1px; min-width: 0; }
+.wx-stat { background: var(--chip); border-radius: 16px; padding: 8px 10px; display: grid; gap: 1px; min-width: 0; }
 .wx-stat .k { font: 700 11px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .wx-stat b { font: 600 17px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
 .wx-periods, .wx-days { grid-column: 1 / -1; display: grid; gap: 8px; }
 .wx-periods { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.wx-days { grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px dotted rgba(59,71,51,.15); padding-top: 12px; }
+.wx-days { grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px dotted var(--dots); padding-top: 12px; }
 .wx-days:empty, .wx-periods:empty { display: none; }
 .period { display: flex; align-items: center; gap: 10px; background: var(--sky-soft); border-radius: 16px; padding: 8px 12px; min-width: 0; }
 .period small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
@@ -119,7 +194,7 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 .svc-head { display: flex; align-items: center; gap: 14px; padding: 14px 20px 10px; }
 .svc-no {
   font: 700 32px/1 var(--f-display); padding: 8px 16px 9px; border-radius: 16px;
-  background: var(--ink); color: var(--cream-solid); letter-spacing: .02em;
+  background: var(--num-bg); color: var(--num-fg); letter-spacing: .02em;
 }
 .svc-route { min-width: 0; }
 .svc-route b { display: block; font: 600 17px/1.2 var(--f-display); }
@@ -130,25 +205,26 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 .lane.to-sembawang { --c: var(--sembawang); --soft: var(--sembawang-soft); }
 .dir {
   justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 10px; border-radius: 99px;
-  background: var(--c); color: #fff; font: 600 13px var(--f-display); letter-spacing: .04em;
+  background: var(--c); color: var(--on-c); font: 600 13px var(--f-display); letter-spacing: .04em;
 }
 .eta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .eta-num { display: inline-flex; align-items: baseline; gap: 6px; }
 .eta { font: 700 clamp(54px, 10vw, 74px)/0.9 var(--f-display); font-variant-numeric: tabular-nums; color: var(--ink); }
 .eta.arr { color: var(--c); }
 .unit { font: 600 18px var(--f-display); color: var(--muted); }
-.at { font: 700 13px var(--f-body); color: var(--muted); padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.7); font-variant-numeric: tabular-nums; }
+.at { font: 700 13px var(--f-body); color: var(--muted); padding: 2px 8px; border-radius: 99px; background: var(--chip); font-variant-numeric: tabular-nums; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font: 700 12px var(--f-body); padding: 3px 10px; border-radius: 99px; background: rgba(255,255,255,.8); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.chip { font: 700 12px var(--f-body); padding: 3px 10px; border-radius: 99px; background: var(--chip); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
 .load i { width: 8px; height: 8px; border-radius: 50%; background: var(--k); }
 .load.SEA { --k: var(--ok); } .load.SDA { --k: var(--warn); } .load.LSD { --k: var(--bad); }
 .deck { margin-left: auto; display: inline-flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font: 700 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; }
 .deck.DD { color: var(--c); }
 .deck svg { --hole: var(--soft); }
-.later { display: flex; gap: 8px; flex-wrap: wrap; border-top: 2px dotted rgba(59,71,51,.15); padding-top: 10px; font-size: 13px; color: var(--muted); align-items: center; }
+:root[data-time="night"] .deck svg { --hole: #14295a; }
+.later { display: flex; gap: 8px; flex-wrap: wrap; border-top: 2px dotted var(--dots); padding-top: 10px; font-size: 13px; color: var(--muted); align-items: center; }
 .later .t { font: 600 20px var(--f-display); color: var(--ink); font-variant-numeric: tabular-nums; }
-.deck-tag { font: 700 10px var(--f-body); padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.8); color: var(--muted); vertical-align: 2px; }
-.deck-tag.DD { background: var(--c); color: #fff; }
+.deck-tag { font: 700 10px var(--f-body); padding: 1px 6px; border-radius: 6px; background: var(--chip); color: var(--muted); vertical-align: 2px; }
+.deck-tag.DD { background: var(--c); color: var(--on-c); }
 .none { font: 600 24px var(--f-display); color: var(--muted); }
 .est { font-size: 12px; color: var(--muted); }
 
@@ -156,6 +232,7 @@ h1 { font: 700 clamp(28px, 6vw, 40px)/1 var(--f-display); margin: 2px 0 2px; tex
 
 /* Friends scene + footer */
 .scene { position: relative; margin: 6px auto 0; width: min(100%, 440px); }
+.scene img.night-only { -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 62%, transparent 100%); mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 62%, transparent 100%); }
 .scene img { display: block; width: 100%; height: auto; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%); mask-image: linear-gradient(to bottom, transparent 0, #000 22%); }
 footer { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 14px; margin: 0 auto max(14px, env(safe-area-inset-bottom, 0px)); max-width: 640px; border-radius: 16px; }
 footer p { margin: 2px 0; }
@@ -177,7 +254,7 @@ footer p { margin: 2px 0; }
   <header class="glass">
     <div class="title">
       <div class="stop-badge" aria-hidden="true">
-        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="4" y="3" width="22" height="19" rx="5" fill="currentColor"/><rect x="7" y="6" width="16" height="7" rx="2" fill="#f7e3a1"/><circle cx="9.5" cy="17.5" r="1.8" fill="#f7e3a1"/><circle cx="20.5" cy="17.5" r="1.8" fill="#f7e3a1"/><rect x="7" y="22" width="4" height="4" rx="1.5" fill="currentColor"/><rect x="19" y="22" width="4" height="4" rx="1.5" fill="currentColor"/></svg>
+        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="4" y="3" width="22" height="19" rx="5" fill="currentColor"/><rect x="7" y="6" width="16" height="7" rx="2" fill="var(--butter)"/><circle cx="9.5" cy="17.5" r="1.8" fill="var(--butter)"/><circle cx="20.5" cy="17.5" r="1.8" fill="var(--butter)"/><rect x="7" y="22" width="4" height="4" rx="1.5" fill="currentColor"/><rect x="19" y="22" width="4" height="4" rx="1.5" fill="currentColor"/></svg>
       </div>
       <div>
         <div class="stop-code">Bus stop 58621 · Canberra St</div>
@@ -221,7 +298,10 @@ footer p { margin: 2px 0; }
     <div class="wx-days" id="wxDays"></div>
   </section>
 
-  <div class="scene"><img src="friends.png" alt="" width="236" height="211"></div>
+  <div class="scene">
+    <img class="day-only" src="friends.png" alt="" width="236" height="211">
+    <img class="night-only" src="boat.png" alt="" width="640" height="380">
+  </div>
 </div>
 <footer class="glass">
   <p>Live data from LTA DataMall via arrivelah (busrouter.sg). Updates every 10 seconds.</p>
