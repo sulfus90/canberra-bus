@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Canberra 126D Buses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one departure board; per service a row, per direction a lane with a big countdown + following buses */
+:root {
+  --bg: #eef1f0;
+  --panel: #ffffff;
+  --ink: #14201c;
+  --muted: #5c6b66;
+  --line: #d5dcd9;
+  --yishun: #c2410c;      /* outbound lane */
+  --sembawang: #0f6e8c;   /* inbound lane */
+  --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --chip: #e6ebe9;
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1412; --panel: #151f1c; --ink: #e8efec; --muted: #8fa19a; --line: #26332f;
+    --yishun: #fb923c; --sembawang: #38bdf8; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+    --chip: #1e2a26; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1412; --panel: #151f1c; --ink: #e8efec; --muted: #8fa19a; --line: #26332f;
+  --yishun: #fb923c; --sembawang: #38bdf8; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+  --chip: #1e2a26; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body);
+  padding-block: max(20px, env(safe-area-inset-top, 0px)) 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.stop-code { font: 500 12px var(--f-mono); letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+h1 { font: 800 clamp(34px, 7vw, 54px)/0.95 var(--f-display); margin: 4px 0 2px; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; }
+.status { display: grid; justify-items: end; gap: 6px; font-size: 13px; color: var(--muted); }
+.clock { font: 600 30px var(--f-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.live { display: inline-flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: pulse 2s infinite; }
+.dot.err { background: var(--bad); animation: none; }
+.bar { width: 120px; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--muted); width: 0; transition: width 1s linear; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } .bar > i { transition: none; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 4px; border-radius: 2px; }
+
+.service { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.svc-head { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.svc-no { font: 800 44px/1 var(--f-display); min-width: 2.4ch; }
+.svc-route { min-width: 0; }
+.svc-route b { display: block; font-weight: 600; }
+.svc-route small { color: var(--muted); }
+.lanes { display: grid; grid-template-columns: 1fr 1fr; }
+.lane { padding: 16px 18px 18px; display: grid; gap: 12px; min-width: 0; position: relative; }
+.lane + .lane { border-left: 1px solid var(--line); }
+.lane::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--c); }
+.lane.to-yishun { --c: var(--yishun); }
+.lane.to-sembawang { --c: var(--sembawang); }
+.dir { display: flex; align-items: center; gap: 8px; font: 600 13px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+.dir svg { flex: none; }
+.eta-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.eta { font: 800 clamp(56px, 11vw, 84px)/0.9 var(--f-display); font-variant-numeric: tabular-nums; }
+.eta.arr { color: var(--c); }
+.unit { font: 600 18px var(--f-display); color: var(--muted); letter-spacing: .04em; }
+.at { font: 500 13px var(--f-mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12px var(--f-body); padding: 3px 8px; border-radius: 999px; background: var(--chip); color: var(--ink); display: inline-flex; align-items: center; gap: 5px; }
+.load i { width: 7px; height: 7px; border-radius: 50%; background: var(--k); }
+.load.SEA { --k: var(--ok); } .load.SDA { --k: var(--warn); } .load.LSD { --k: var(--bad); }
+.later { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 10px; font-size: 13px; color: var(--muted); align-items: center; }
+.later .t { font: 600 20px var(--f-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.none { font: 600 28px var(--f-display); color: var(--muted); }
+.est { font-size: 12px; color: var(--muted); }
+
+footer { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+footer a { color: inherit; }
+.error { background: color-mix(in srgb, var(--bad) 12%, var(--panel)); border: 1px solid var(--bad); color: var(--ink); padding: 10px 14px; border-radius: 10px; font-size: 14px; }
+
+@media (max-width: 620px) {
+  .lanes { grid-template-columns: 1fr; }
+  .lane + .lane { border-left: 0; border-top: 1px solid var(--line); }
+  .status { justify-items: start; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="stop-code">Bus stop 58621 · Canberra St</div>
+      <h1>Blk 126D Canberra</h1>
+      <p class="sub">Live arrivals for services 861 and 883</p>
+    </div>
+    <div class="status">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="live"><span class="dot" id="dot"></span><span id="updated">Connecting…</span></div>
+      <div class="bar" title="Time until next refresh"><i id="bar"></i></div>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--yishun)"></i>Towards Yishun (outbound)</span>
+    <span><i class="sw" style="background:var(--sembawang)"></i>Towards Sembawang Int (return)</span>
+    <span><i class="chip load SEA"><i></i>Seats</i><i class="chip load SDA"><i></i>Standing</i><i class="chip load LSD"><i></i>Full</i></span>
+  </div>
+
+  <div id="err" class="error" hidden></div>
+  <div id="board"></div>
+
+  <footer>
+    <span>Data: LTA DataMall via arrivelah (busrouter.sg). Refreshes every 10 s. Countdown ticks every second between refreshes.</span>
+    <span>861 &amp; 883 loop from Sembawang Int. The 1st visit here heads to Yishun, the 2nd heads back to Sembawang.</span>
+  </footer>
+</div>
+
+<script>
+const STOP = "58621";
+const API = "https://arrivelah2.busrouter.sg/?id=" + STOP;
+const REFRESH_MS = 10000;
+const SERVICES = {
+  "861": { route: "Sembawang Int ⟲ Yishun Blk 846", via: "via Canberra · Yishun Ave 1/2" },
+  "883": { route: "Sembawang Int ⟲ Yishun Community Hosp", via: "via Canberra · Yishun Central" },
+};
+const DIRS = [
+  { visit: 1, cls: "to-yishun", label: "To Yishun" },
+  { visit: 2, cls: "to-sembawang", label: "To Sembawang" },
+];
+const LOAD = { SEA: "Seats available", SDA: "Standing", LSD: "Limited standing" };
+const TYPE = { SD: "Single deck", DD: "Double deck", BD: "Bendy" };
+
+let data = null, lastFetch = 0, ok = false;
+
+const arrow = (up) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l3.5 4-3.5 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const fmtTime = (d) => d.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+// Collect unique upcoming buses per service, split by visit number (direction)
+function bucket(svc) {
+  const seen = new Set(), out = { 1: [], 2: [] };
+  for (const k of ["next", "subsequent", "next2", "next3"]) {
+    const b = svc[k];
+    if (!b || !b.time) continue;
+    const key = b.time + "|" + b.visit_number + "|" + b.lat + "|" + b.lng;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    (out[b.visit_number === 2 ? 2 : 1]).push(b);
+  }
+  for (const v of [1, 2]) out[v].sort((a, b) => new Date(a.time) - new Date(b.time));
+  return out;
+}
+
+function mins(b) {
+  return Math.floor((new Date(b.time) - Date.now()) / 60000);
+}
+
+function etaHTML(b) {
+  const m = mins(b);
+  if (m <= 0) return `<span class="eta arr">Arr</span>`;
+  return `<span class="eta">${m}</span><span class="unit">min</span>`;
+}
+
+function laneHTML(dir, buses) {
+  const upcoming = buses.filter(b => new Date(b.time) - Date.now() > -60000);
+  if (!upcoming.length) {
+    return `<div class="lane ${dir.cls}">
+      <div class="dir">${arrow()}${dir.label}</div>
+      <div class="none">No bus in feed</div>
+      <div class="est">The feed only lists the next few buses for this service</div>
+    </div>`;
+  }
+  const [first, ...rest] = upcoming;
+  const chips = [
+    first.load ? `<span class="chip load ${first.load}"><i></i>${LOAD[first.load] || first.load}</span>` : "",
+    first.type ? `<span class="chip">${TYPE[first.type] || first.type}</span>` : "",
+    first.feature === "WAB" ? `<span class="chip">♿ Wheelchair</span>` : "",
+    first.monitored === 0 ? `<span class="chip">Scheduled</span>` : "",
+  ].join("");
+  const later = rest.length
+    ? `<div class="later">Then ${rest.map(b => {
+        const m = mins(b);
+        return `<span><span class="t">${m <= 0 ? "Arr" : m}</span>${m <= 0 ? "" : " min"}</span>`;
+      }).join("<span>·</span>")}</div>`
+    : `<div class="later">No later bus listed yet</div>`;
+  return `<div class="lane ${dir.cls}">
+    <div class="dir">${arrow()}${dir.label}</div>
+    <div class="eta-row">${etaHTML(first)}<span class="at">${fmtTime(new Date(first.time))}</span></div>
+    <div class="chips">${chips}</div>
+    ${later}
+  </div>`;
+}
+
+function render() {
+  const board = document.getElementById("board");
+  const list = (data && data.services) || [];
+  board.innerHTML = Object.keys(SERVICES).map(no => {
+    const meta = SERVICES[no];
+    const svc = list.find(s => s.no === no);
+    const b = svc ? bucket(svc) : { 1: [], 2: [] };
+    return `<section class="service" aria-label="Service ${no}">
+      <div class="svc-head">
+        <div class="svc-no">${no}</div>
+        <div class="svc-route"><b>${meta.route}</b><small>${svc ? meta.via : (data ? "Not operating right now" : "Loading…")}</small></div>
+      </div>
+      <div class="lanes">${DIRS.map(d => laneHTML(d, b[d.visit])).join("")}</div>
+    </section>`;
+  }).join("<div style='height:14px'></div>");
+}
+
+async function load() {
+  try {
+    const res = await fetch(API, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    data = await res.json();
+    ok = true;
+    lastFetch = Date.now();
+    document.getElementById("err").hidden = true;
+    document.getElementById("dot").classList.remove("err");
+    document.getElementById("updated").textContent = "Updated " + fmtTime(new Date()) + ":" + String(new Date().getSeconds()).padStart(2, "0");
+  } catch (e) {
+    ok = false;
+    lastFetch = Date.now();
+    document.getElementById("dot").classList.add("err");
+    document.getElementById("updated").textContent = "Offline, retrying";
+    const err = document.getElementById("err");
+    err.hidden = false;
+    err.textContent = "Couldn't reach the bus arrival service (" + e.message + "). Showing the last known times and retrying every 10 seconds.";
+  }
+  render();
+}
+
+function tick() {
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toLocaleTimeString("en-SG", { hour12: false });
+  const frac = Math.min(1, (Date.now() - lastFetch) / REFRESH_MS);
+  document.getElementById("bar").style.width = (frac * 100) + "%";
+  if (data) render();
+}
+
+load();
+setInterval(load, REFRESH_MS);
+setInterval(tick, 1000);
+tick();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
