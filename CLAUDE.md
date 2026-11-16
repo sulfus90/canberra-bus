@@ -11,3 +11,4 @@ Live arrival board for Singapore bus stop **58621** ("Blk 126 CP", Canberra St, 
 
 ## Changelog
 - 2026-11-16: Initial version. Board with 861/883 and two direction lanes each: big ETA, clock time, load, deck type and wheelchair chips, and following buses. Light and dark themes, plus an offline banner when a fetch fails.
+- 2026-11-16: Deck type is easier to see. A bus drawing (`deckHTML()`) next to the big ETA shows one row of windows for single deck and two rows for double deck; double deck is tinted in the lane colour. Each following bus gets an SD/DD tag, and the legend explains SD/DD.
